@@ -1,0 +1,1185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Millionaire Challenge</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Start with ₹1,000. Make bold decisions. Build your empire. Can you reach ₹10 lakh? A fictional business simulation game.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one tall mobile column (dashboard over decision card); on wide
+   screens the capital dashboard docks left and the decision card sits right.
+   Deliberately single-theme: a night-time trading-floor navy. */
+:root {
+  color-scheme: dark;
+  --bg: #0a1222;
+  --bg-glow: #13254a;
+  --surface: #111c34;
+  --surface-2: #182746;
+  --line: #24365d;
+  --text: #eef2fb;
+  --muted: #9aa8c8;
+  --profit: #2fd39a;
+  --profit-ink: #04261a;
+  --gold: #f5c451;
+  --gold-ink: #2b1d00;
+  --loss: #ff6170;
+  --focus: #8fb8ff;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Manrope", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --step--1: 0.8125rem;
+  --step-0: 0.9375rem;
+  --step-1: 1.125rem;
+  --step-2: 1.4rem;
+  --step-3: 2rem;
+  --step-4: clamp(2.3rem, 9vw, 3.2rem);
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(120% 60% at 50% -10%, var(--bg-glow) 0%, transparent 60%),
+    var(--bg);
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 16px 28px;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+[hidden] { display: none !important; }
+
+.app { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+/* ---------- Header ---------- */
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark {
+  width: 36px; height: 36px; border-radius: 11px; flex: none;
+  display: grid; place-items: center;
+  background: linear-gradient(145deg, var(--gold), #d99a1e);
+  color: var(--gold-ink); font-family: var(--font-display); font-weight: 800; font-size: 1.15rem;
+  box-shadow: 0 6px 18px rgba(245, 196, 81, 0.25);
+}
+.brand-name { font-family: var(--font-display); font-weight: 800; font-size: var(--step-1); letter-spacing: -0.01em; line-height: 1.1; }
+.brand-name small { display: block; font-family: var(--font-body); font-weight: 500; font-size: var(--step--1); color: var(--muted); letter-spacing: 0; }
+.round-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.round-label { font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.round-label b { color: var(--text); }
+.pips { display: flex; gap: 4px; }
+.pip { width: 14px; height: 6px; border-radius: 3px; background: var(--line); transition: background .3s; }
+.pip.done-up { background: var(--profit); }
+.pip.done-down { background: var(--loss); }
+.pip.now { background: var(--gold); }
+
+/* ---------- Layout ---------- */
+.board { display: grid; gap: 14px; }
+/* Phones: capital first, then the decision, then stats and strengths, so the
+   choice is on screen without scrolling past the whole dashboard. */
+@media (max-width: 899px) {
+  .board > .dash { display: contents; }
+  .dash > .cap-panel { order: 0; }
+  .stage { order: 1; }
+  .dash > .stats { order: 2; }
+  .dash > .traits-panel { order: 3; }
+}
+@media (min-width: 900px) {
+  .board { grid-template-columns: 360px minmax(0, 1fr); align-items: start; }
+  .dash { position: sticky; top: max(16px, env(safe-area-inset-top, 0px)); }
+  .dash .stat dd { font-size: var(--step-0); }
+}
+@media (max-width: 600px) {
+  .round-meta { width: 100%; flex-direction: row; justify-content: space-between; align-items: center; }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  min-width: 0;
+}
+
+/* ---------- Capital dashboard ---------- */
+.dash { display: flex; flex-direction: column; gap: 14px; }
+.cap-label { font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.cap-value {
+  font-family: var(--font-display); font-weight: 800; font-size: var(--step-4);
+  line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+  margin-top: 6px; overflow-wrap: anywhere;
+}
+.cap-value.flash-up { color: var(--profit); }
+.cap-value.flash-down { color: var(--loss); }
+.cap-delta { margin-top: 6px; font-weight: 700; font-size: var(--step-0); min-height: 1.5em; font-variant-numeric: tabular-nums; }
+.cap-delta.up { color: var(--profit); }
+.cap-delta.down { color: var(--loss); }
+
+.progress { margin-top: 16px; }
+.track { position: relative; height: 14px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.fill {
+  position: absolute; inset: 0 auto 0 0; width: 0%;
+  background: linear-gradient(90deg, #1c9e72, var(--profit) 70%, var(--gold));
+  border-radius: 7px;
+  transition: width .9s cubic-bezier(.2, .8, .2, 1);
+}
+.ticks { position: relative; height: 34px; margin-top: 6px; font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tick { position: absolute; top: 0; transform: translateX(-50%); text-align: center; line-height: 1.25; white-space: nowrap; }
+.tick::before { content: ""; display: block; width: 1px; height: 6px; margin: 0 auto 3px; background: var(--line); }
+.tick:first-child { transform: none; text-align: left; }
+.tick:first-child::before { margin-left: 0; }
+.tick:last-child { transform: translateX(-100%); text-align: right; color: var(--gold); font-weight: 700; }
+.tick:last-child::before { margin-right: 0; background: var(--gold); }
+.tick.reached { color: var(--text); }
+.tick:last-child.reached { color: var(--gold); }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; min-width: 0; }
+.stat dt { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+.stat dd { margin: 2px 0 0; font-family: var(--font-display); font-weight: 700; font-size: var(--step-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat dd.gold { color: var(--gold); }
+
+.traits-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.traits-head h2 { margin: 0; font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.traits-head span { font-size: 0.75rem; color: var(--muted); }
+.traits { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.traits .empty { color: var(--muted); font-size: var(--step--1); }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  font-size: var(--step--1); font-weight: 600;
+}
+.chip.bad { border-color: rgba(255, 97, 112, 0.45); color: #ffc2c8; }
+.chip.new { animation: pop .5s ease-out; }
+@keyframes pop { 0% { transform: scale(.6); opacity: 0; } 70% { transform: scale(1.08); } 100% { transform: scale(1); opacity: 1; } }
+
+/* ---------- Stage (decision / result / intro / finish) ---------- */
+.stage { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.level-tag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--gold);
+}
+.scenario-title { font-family: var(--font-display); font-weight: 800; font-size: var(--step-3); line-height: 1.05; letter-spacing: -0.02em; margin: 8px 0 10px; text-wrap: balance; }
+.scenario-text { margin: 0; color: #cdd6ec; font-size: var(--step-1); line-height: 1.45; max-width: 62ch; }
+
+.options { display: grid; gap: 10px; }
+.option {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; align-items: start;
+  text-align: left; cursor: pointer;
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--radius);
+  padding: 16px 16px 16px 14px; min-height: 64px;
+  transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.option:hover:not(:disabled) { border-color: var(--gold); background: var(--surface-2); transform: translateY(-2px); }
+.option:active:not(:disabled) { transform: translateY(0) scale(.99); }
+.option:disabled { cursor: default; opacity: .45; }
+.option.picked { opacity: 1; border-color: var(--gold); background: var(--surface-2); }
+.option-key {
+  grid-row: span 2; width: 38px; height: 38px; border-radius: 11px;
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-weight: 800; font-size: var(--step-1);
+  background: var(--surface-2); border: 1px solid var(--line); color: var(--gold);
+}
+.option-title { font-weight: 700; font-size: var(--step-1); line-height: 1.25; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.option-desc { color: var(--muted); font-size: var(--step-0); }
+.risk { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.risk.low { color: var(--profit); }
+.risk.medium { color: var(--gold); }
+.risk.high { color: var(--loss); }
+.hint { margin: 0; font-size: var(--step--1); color: var(--muted); }
+.hint kbd { font-family: inherit; font-weight: 700; padding: 0 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--text); }
+
+/* Result */
+.result { display: flex; flex-direction: column; gap: 14px; animation: rise .45s cubic-bezier(.2, .8, .2, 1); }
+@keyframes rise { from { transform: translateY(14px); opacity: 0; } to { transform: none; opacity: 1; } }
+.result.up { border-color: rgba(47, 211, 154, 0.5); }
+.result.down { border-color: rgba(255, 97, 112, 0.5); }
+.result-kicker { font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.result-choice { font-weight: 700; font-size: var(--step-1); margin-top: 2px; }
+.result-amount { font-family: var(--font-display); font-weight: 800; font-size: var(--step-4); line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.result.up .result-amount { color: var(--profit); }
+.result.down .result-amount { color: var(--loss); }
+.ledger { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 12px; margin: 0; padding: 12px 14px; background: var(--bg); border: 1px dashed var(--line); border-radius: var(--radius-sm); font-variant-numeric: tabular-nums; }
+.ledger dt { color: var(--muted); }
+.ledger dd { margin: 0; text-align: right; font-weight: 700; }
+.ledger .total { border-top: 1px dashed var(--line); padding-top: 6px; }
+.result-text { margin: 0; font-size: var(--step-1); line-height: 1.45; color: #dbe2f3; }
+.callout { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: var(--step-0); }
+.callout.good { box-shadow: inset 3px 0 0 var(--profit); }
+.callout.bad { box-shadow: inset 3px 0 0 var(--loss); }
+.callout.info { box-shadow: inset 3px 0 0 var(--gold); }
+.callout b { font-weight: 700; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 54px; padding: 0 26px; border-radius: 16px; border: 0; cursor: pointer;
+  font-family: var(--font-display); font-weight: 800; font-size: var(--step-1); letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #ffd56e, var(--gold)); color: var(--gold-ink);
+  box-shadow: 0 8px 24px rgba(245, 196, 81, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.15);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(245, 196, 81, 0.35), inset 0 -3px 0 rgba(0, 0, 0, 0.15); }
+.btn:active { transform: translateY(0); }
+.btn.wide { width: 100%; }
+.btn.ghost { background: transparent; color: var(--text); border: 1.5px solid var(--line); box-shadow: none; }
+.btn.ghost:hover { border-color: var(--muted); }
+
+/* Intro */
+.hero { display: flex; flex-direction: column; gap: 16px; }
+.hero h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.4rem, 10vw, 4rem); line-height: .95; letter-spacing: -0.035em; margin: 0; text-wrap: balance; }
+.hero h1 .gold { color: var(--gold); }
+.hero p.lede { margin: 0; font-size: var(--step-1); color: #cdd6ec; max-width: 46ch; }
+.journey { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.journey .stat dd { font-size: var(--step-2); }
+.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: #cdd6ec; }
+.rules li { display: flex; gap: 10px; }
+.rules li::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: .55em; border-radius: 2px; background: var(--gold); transform: rotate(45deg); }
+
+/* Finish */
+.finale { display: flex; flex-direction: column; gap: 16px; text-align: center; align-items: center; }
+.medal {
+  width: 92px; height: 92px; border-radius: 50%; display: grid; place-items: center; font-size: 2.6rem;
+  background: radial-gradient(circle at 35% 30%, #fff1c2, var(--gold) 45%, #b9800f);
+  box-shadow: 0 0 0 6px rgba(245, 196, 81, 0.15), 0 14px 40px rgba(245, 196, 81, 0.3);
+}
+.finale.bankrupt .medal { background: radial-gradient(circle at 35% 30%, #ffd0d4, var(--loss) 50%, #a3212e); box-shadow: 0 0 0 6px rgba(255, 97, 112, 0.15); }
+.finale-outcome { font-size: var(--step--1); font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
+.finale.won .finale-outcome { color: var(--gold); }
+.finale.survived .finale-outcome { color: var(--profit); }
+.finale.bankrupt .finale-outcome { color: var(--loss); }
+.finale h2 { font-family: var(--font-display); font-weight: 800; font-size: var(--step-3); line-height: 1.05; margin: 0; letter-spacing: -0.02em; }
+.finale p { margin: 0; color: #cdd6ec; max-width: 44ch; }
+.finale .stats { width: 100%; text-align: left; }
+.history { width: 100%; text-align: left; margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.history li { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 12px; background: var(--surface-2); border-radius: 10px; font-size: var(--step--1); }
+.history .r { font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.history .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history .m { font-weight: 800; font-variant-numeric: tabular-nums; }
+.history .m.up { color: var(--profit); }
+.history .m.down { color: var(--loss); }
+.history-title { width: 100%; text-align: left; margin: 4px 0 -6px; font-size: var(--step--1); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+.footnote { text-align: center; color: var(--muted); font-size: 0.75rem; margin: 6px 0 0; }
+
+#confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; width: 100%; height: 100%; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 420px) {
+  .panel { padding: 16px 14px; }
+  .scenario-title { font-size: 1.7rem; }
+  .stat { padding: 8px 10px; }
+  .stat dd { font-size: var(--step-0); }
+  .stats { gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">₹</div>
+      <div class="brand-name">Millionaire Challenge<small>Build your business empire</small></div>
+    </div>
+    <div class="round-meta" id="roundMeta" hidden>
+      <div class="round-label" id="roundLabel">Round <b>1</b> / 10</div>
+      <div class="pips" id="pips" aria-hidden="true"></div>
+    </div>
+  </header>
+
+  <main class="board">
+    <section class="dash" aria-label="Your finances">
+      <div class="panel cap-panel">
+        <div class="cap-label">Current capital</div>
+        <div class="cap-value" id="capValue">₹1,000</div>
+        <div class="cap-delta" id="capDelta" aria-live="polite"></div>
+        <div class="progress">
+          <div class="track" role="progressbar" aria-label="Progress to ₹10 lakh" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="track">
+            <div class="fill" id="fill"></div>
+          </div>
+          <div class="ticks" id="ticks">
+            <div class="tick" data-at="1000" style="left:0%">₹1K<br>Start</div>
+            <div class="tick" data-at="10000" style="left:33.333%">₹10K</div>
+            <div class="tick" data-at="100000" style="left:66.667%">₹1 Lakh</div>
+            <div class="tick" data-at="1000000" style="left:100%">₹10 Lakh<br>Goal</div>
+          </div>
+        </div>
+      </div>
+      <dl class="stats">
+        <div class="stat"><dt>Started</dt><dd id="statStart">₹1,000</dd></div>
+        <div class="stat"><dt>Target</dt><dd class="gold" id="statTarget">₹10,00,000</dd></div>
+        <div class="stat"><dt>To go</dt><dd id="statToGo">×1000</dd></div>
+      </dl>
+      <div class="panel traits-panel">
+        <div class="traits-head"><h2>Business strengths</h2><span>Shape future outcomes</span></div>
+        <ul class="traits" id="traits"><li class="empty">None yet. Your decisions will build them.</li></ul>
+      </div>
+    </section>
+
+    <section class="stage" id="stage" aria-live="polite"></section>
+  </main>
+
+  <p class="footnote">A fictional game with virtual money and simplified outcomes. Not financial advice.</p>
+</div>
+<canvas id="confetti" hidden></canvas>
+
+<script id="game-engine">
+/* Millionaire Challenge — game engine (pure logic, no DOM). */
+(function (root) {
+  "use strict";
+
+  var CONFIG = Object.freeze({
+    startingCapital: 1000,
+    targetCapital: 1000000,
+    bankruptcyThreshold: 100,
+    totalRounds: 10
+  });
+
+  /* Traits are business strengths (or weaknesses) a player picks up through
+     decisions. Later options pay off differently depending on them, so the
+     best move depends on the path taken, not on one obvious answer. */
+  var TRAITS = Object.freeze({
+    local:    { label: "Loyal Locals",       icon: "🏘️", good: true,  desc: "A neighbourhood crowd that keeps coming back." },
+    online:   { label: "Online Seller",      icon: "🛒", good: true,  desc: "You know how to sell to buyers you never meet." },
+    brand:    { label: "Signature Brand",    icon: "🎨", good: true,  desc: "Your designs are recognisable and shareable." },
+    quality:  { label: "Quality Reputation", icon: "⭐", good: true,  desc: "Glowing reviews. Customers trust you." },
+    discount: { label: "Bargain Image",      icon: "🏷️", good: false, desc: "Customers came for the deals and expect more of them." },
+    eco:      { label: "Eco Line",           icon: "🌱", good: true,  desc: "You sell products for the planet-conscious buyer." },
+    team:     { label: "Pro Team",           icon: "👔", good: true,  desc: "Experienced staff who can run things without you." },
+    family:   { label: "Family Crew",        icon: "👨‍👩‍👧", good: false, desc: "Loyal helpers, but nobody is trained to manage." },
+    tech:     { label: "Automation",         icon: "🤖", good: true,  desc: "Software and freelancers that scale on demand." },
+    stock:    { label: "Bulk Inventory",     icon: "📦", good: true,  desc: "A warehouse full of stock bought cheap." },
+    supplier: { label: "Trusted Supplier",   icon: "🤝", good: true,  desc: "A supplier who will grow with you." },
+    cheap:    { label: "Budget Supplier",    icon: "⚠️", good: false, desc: "Low costs — and an inconsistent product." },
+    investor: { label: "Big Investor",       icon: "💼", good: true,  desc: "A deep-pocketed partner backs your next move." }
+  });
+
+  /* Each option: base outcome, optional trait conditions (first match wins),
+     and traits granted. m = capital multiplier. */
+  var ROUNDS = [
+    {
+      level: "Your First Business",
+      icon: "🚀",
+      scenario: "You have ₹1,000 and a free weekend. Every empire starts somewhere. What will yours be?",
+      options: [
+        {
+          title: "Snack stall at the weekly market",
+          description: "Cheap to start with steady footfall. Slow, but people come back.",
+          risk: "low",
+          base: { m: 2.0, text: "Your samosas sold out by noon. Regulars already know your name." },
+          grants: ["local"]
+        },
+        {
+          title: "Resell phone accessories online",
+          description: "Thin margins but a huge audience. Pure hustle.",
+          risk: "medium",
+          base: { m: 2.2, text: "Phone cases and cables flew off your online store. Margins are thin, but volume is real." },
+          grants: ["online"]
+        },
+        {
+          title: "Design custom printed T-shirts",
+          description: "Creative products sell for more. Demand is unproven.",
+          risk: "medium",
+          base: { m: 2.0, text: "Your first batch of quirky tees sold to college students. People asked who designed them." },
+          grants: ["brand"]
+        }
+      ]
+    },
+    {
+      level: "Your First Customers",
+      icon: "🧲",
+      scenario: "Orders are trickling in, but you need many more customers. Where do you put your money?",
+      options: [
+        {
+          title: "Pay an influencer for a shoutout",
+          description: "Fast reach. Costs a big chunk upfront.",
+          risk: "high",
+          base: { m: 1.3, text: "Lots of likes, few purchases. Their followers weren't really your buyers." },
+          conditions: [
+            { trait: "brand", m: 2.6, text: "Your designs looked stunning on camera. Followers rushed to buy." },
+            { trait: "online", m: 1.7, text: "The link went straight to your online store, so the clicks turned into sales." }
+          ]
+        },
+        {
+          title: "Improve the product and collect reviews",
+          description: "A slow burn that builds trust over time.",
+          risk: "low",
+          base: { m: 1.6, text: "Better product, happy buyers, five-star reviews. Growth is modest but solid." },
+          grants: ["quality"]
+        },
+        {
+          title: "Run a 50%-off flash sale",
+          description: "Instant buzz, but your margins vanish.",
+          risk: "medium",
+          base: { m: 1.8, text: "Customers swarmed in for the deal. You made money on volume, but they now expect bargains." },
+          grants: ["discount"]
+        }
+      ]
+    },
+    {
+      level: "A New Trend",
+      icon: "📈",
+      scenario: "Eco-friendly products are suddenly everywhere. Customers keep asking if you have a green option.",
+      options: [
+        {
+          title: "Pivot the whole range to eco products",
+          description: "Ride the wave completely. You drop what already works.",
+          risk: "high",
+          base: { m: 1.1, text: "Buyers doubted the sudden switch. Your 'green' products looked like a gimmick." },
+          conditions: [
+            { trait: "quality", m: 2.5, text: "Your reputation for quality made the eco pivot believable. Sales soared." }
+          ],
+          grants: ["eco"]
+        },
+        {
+          title: "Add a small eco line alongside bestsellers",
+          description: "Test the trend without betting everything.",
+          risk: "low",
+          base: { m: 1.6, text: "The eco line sold steadily while your bestsellers kept the cash flowing." },
+          grants: ["eco"]
+        },
+        {
+          title: "Ignore the trend and double down",
+          description: "Stay focused. Risky if the trend sticks.",
+          risk: "medium",
+          base: { m: 1.2, text: "Some customers drifted to greener competitors. Sales stalled." },
+          conditions: [
+            { trait: "local", m: 2.1, text: "Your regulars didn't care about trends — they wanted their usual. You kept every one." },
+            { trait: "discount", m: 1.6, text: "Bargain hunters care about price, not packaging. They stayed." }
+          ]
+        }
+      ]
+    },
+    {
+      level: "Competitor Attack",
+      icon: "⚔️",
+      scenario: "A well-funded rival launches right next to you, undercutting your prices by 30%.",
+      options: [
+        {
+          title: "Start a price war",
+          description: "Slash prices below theirs and outlast them.",
+          risk: "high",
+          base: { m: 0.6, text: "You kept customers but bled cash. The rival has deeper pockets." },
+          conditions: [
+            { trait: "discount", m: 0, text: "You were already at half price. Cutting further meant selling below cost — the cash ran out in weeks." }
+          ]
+        },
+        {
+          title: "Differentiate with premium service",
+          description: "Loyalty programme, faster delivery, better support.",
+          risk: "medium",
+          base: { m: 1.5, text: "Service-focused customers stayed with you. A respectable defence." },
+          conditions: [
+            { trait: "quality", m: 2.2, text: "Your customers already trusted you. Better service made you untouchable." },
+            { trait: "discount", m: 0.8, text: "Your customers came for low prices, not service. Many left for the cheaper rival." }
+          ]
+        },
+        {
+          title: "Launch bold 'Original vs Copycat' ads",
+          description: "Loud, cheeky marketing. Could go either way.",
+          risk: "high",
+          base: { m: 0.9, text: "The ads confused people. Nobody was sure who the copycat was." },
+          conditions: [
+            { trait: "brand", m: 2.3, text: "Fans rallied behind the original. Your ads went semi-viral." },
+            { trait: "local", m: 2.0, text: "The neighbourhood took your side. Locals boycotted the newcomer." }
+          ]
+        }
+      ]
+    },
+    {
+      level: "Build a Team",
+      icon: "👥",
+      scenario: "Orders have outgrown you. You're working 16-hour days and mistakes are creeping in.",
+      options: [
+        {
+          title: "Hire two experienced professionals",
+          description: "Expensive salaries now. Built to scale later.",
+          risk: "medium",
+          base: { m: 1.3, text: "Salaries ate into profits, but operations run smoothly without you." },
+          grants: ["team"]
+        },
+        {
+          title: "Bring in friends and family",
+          description: "Cheap and loyal. Nobody is trained.",
+          risk: "low",
+          base: { m: 1.7, text: "Low wages, lots of goodwill. Profits jumped — for now." },
+          grants: ["family"]
+        },
+        {
+          title: "Automate with software and freelancers",
+          description: "Lean and modern. Takes effort to set up.",
+          risk: "medium",
+          base: { m: 1.2, text: "Setting up the tools took longer than expected, but the system is in place." },
+          conditions: [
+            { trait: "online", m: 2.0, text: "Your online store plugged straight into the new tools. Orders process themselves." }
+          ],
+          grants: ["tech"]
+        }
+      ]
+    },
+    {
+      level: "Supplier Deal",
+      icon: "🚚",
+      scenario: "A supplier offers 40% off — but only if you prepay six months of bulk orders.",
+      options: [
+        {
+          title: "Sign the bulk deal",
+          description: "Huge savings, but cash gets locked in stock.",
+          risk: "medium",
+          base: { m: 1.3, text: "Your margins improved, but your warehouse is packed and cash is tight." },
+          grants: ["stock"]
+        },
+        {
+          title: "Negotiate a smaller, flexible contract",
+          description: "Smaller discount. Room to adjust as you grow.",
+          risk: "low",
+          base: { m: 1.5, text: "A fair deal and a supplier who likes working with you." },
+          grants: ["supplier"]
+        },
+        {
+          title: "Switch to a cheaper unknown supplier",
+          description: "The lowest cost on the market. Quality is a gamble.",
+          risk: "high",
+          base: { m: 1.9, text: "Costs dropped sharply. A few complaints, but profits look great." },
+          conditions: [
+            { trait: "quality", m: 0.7, text: "Your loyal customers noticed the drop in quality immediately. Reviews tanked." },
+            { trait: "eco", m: 0.6, text: "The 'eco' materials turned out to be fake. A news story called you out." }
+          ],
+          grants: ["cheap"]
+        }
+      ]
+    },
+    {
+      level: "Going Viral",
+      icon: "🔥",
+      scenario: "A video featuring your product hits 5 million views overnight. Orders are up 20×.",
+      options: [
+        {
+          title: "Accept every order and scale fast",
+          description: "Strike while it's hot. Can you deliver?",
+          risk: "high",
+          base: { m: 0.8, text: "You couldn't fulfil half the orders. Refunds and angry reviews followed." },
+          conditions: [
+            { trait: "stock", m: 3.2, text: "Your packed warehouse saved the day. Every order shipped on time." },
+            { trait: "team", m: 2.6, text: "Your pros scaled operations overnight. You delivered on the hype." },
+            { trait: "tech", m: 2.3, text: "Your automated systems and freelancers absorbed the surge." }
+          ]
+        },
+        {
+          title: "Open a waitlist with pre-orders",
+          description: "Controlled growth. Keep quality high.",
+          risk: "low",
+          base: { m: 1.8, text: "The waitlist made you look exclusive. Pre-orders funded the expansion." },
+          conditions: [
+            { trait: "cheap", m: 1.1, text: "By the time pre-orders shipped, budget-quality products disappointed buyers." }
+          ]
+        },
+        {
+          title: "License your product to a big retailer",
+          description: "Cash in on the moment. Someone else handles the rush.",
+          risk: "medium",
+          base: { m: 1.6, text: "A solid licensing fee, though the retailer kept most of the upside." },
+          conditions: [
+            { trait: "brand", m: 2.5, text: "Your recognisable brand commanded a premium licensing deal." }
+          ]
+        }
+      ]
+    },
+    {
+      level: "Business Expansion",
+      icon: "🗺️",
+      scenario: "You're a known name now. It's time to expand into new markets.",
+      options: [
+        {
+          title: "Open stores in three new cities",
+          description: "Big upside, big rent, big loans. Bet the business.",
+          risk: "high",
+          base: { m: 0.5, text: "Three stores, three sets of problems. You stretched too thin." },
+          conditions: [
+            { trait: "team", m: 2.9, text: "Your experienced team ran each new store like clockwork." },
+            { trait: "family", m: 0, text: "Your untrained family crew couldn't run three stores. Rents and loan payments sank everything." }
+          ]
+        },
+        {
+          title: "Go national through online marketplaces",
+          description: "Reach the whole country without opening a store.",
+          risk: "medium",
+          base: { m: 1.4, text: "Sales grew, but marketplace fees and returns were higher than expected." },
+          conditions: [
+            { trait: "tech", m: 2.3, text: "Your automation handled nationwide orders without a hitch." },
+            { trait: "online", m: 2.1, text: "You already knew how to win online. The marketplaces loved you." }
+          ]
+        },
+        {
+          title: "Expand the range for existing customers",
+          description: "Sell more to people who already love you.",
+          risk: "low",
+          base: { m: 1.5, text: "Existing customers happily tried your new products." },
+          conditions: [
+            { trait: "quality", m: 1.9, text: "Customers trust anything with your name on it. The new range sold out." },
+            { trait: "local", m: 2.1, text: "Your regulars bought everything new you put on the counter." }
+          ]
+        }
+      ]
+    },
+    {
+      level: "Major Business Offer",
+      icon: "💼",
+      scenario: "A national conglomerate wants in. Their team has three proposals on the table.",
+      options: [
+        {
+          title: "Sell a 40% stake for a cash injection",
+          description: "Guaranteed money and a powerful partner.",
+          risk: "low",
+          base: { m: 2.0, text: "The cash landed in your account. You own less, but you have far more to work with." },
+          grants: ["investor"]
+        },
+        {
+          title: "Partner with their national retail chain",
+          description: "Shelf space in 500 stores. Can your supply keep up?",
+          risk: "medium",
+          base: { m: 1.4, text: "The partnership worked, but supply hiccups limited the upside." },
+          conditions: [
+            { trait: "supplier", m: 2.7, text: "Your trusted supplier scaled with you. Every shelf stayed stocked." },
+            { trait: "cheap", m: 0.6, text: "Your budget products failed the chain's quality audit. The deal was cancelled with penalties." }
+          ]
+        },
+        {
+          title: "Reject them and borrow to grow alone",
+          description: "Keep 100% ownership. Take on a big loan.",
+          risk: "high",
+          base: { m: 0.5, text: "The loan repayments squeezed every rupee. Growth slowed to a crawl." },
+          conditions: [
+            { trait: "team", m: 2.4, text: "Your team turned the loan into rapid growth. You kept it all." },
+            { trait: "tech", m: 2.2, text: "Lean, automated operations made the loan easy to repay." }
+          ]
+        }
+      ]
+    },
+    {
+      level: "Build Your Empire",
+      icon: "👑",
+      scenario: "One final decision. This is the move that defines your empire.",
+      options: [
+        {
+          title: "Launch a nationwide brand campaign",
+          description: "TV, billboards, cricket sponsorships. Go big.",
+          risk: "medium",
+          base: { m: 1.3, text: "The campaign raised awareness, but it didn't stick." },
+          conditions: [
+            { trait: "brand", m: 2.6, text: "Your brand became a household name across India." },
+            { trait: "eco", m: 2.0, text: "Your eco story struck a chord. The campaign became a movement." }
+          ]
+        },
+        {
+          title: "Acquire your old rival",
+          description: "Absorb their customers and their stores.",
+          risk: "medium",
+          base: { m: 1.7, text: "You bought out the competition. Integration was messy, but you own the market." },
+          conditions: [
+            { trait: "investor", m: 2.4, text: "Your investor funded the deal and lent their integration experts. Seamless." }
+          ]
+        },
+        {
+          title: "Go international",
+          description: "Launch in the Middle East and Southeast Asia.",
+          risk: "high",
+          base: { m: 0.5, text: "New countries, new rules. Customs delays and costs overwhelmed you." },
+          conditions: [
+            { trait: "tech", m: 2.7, text: "Your automated systems went global overnight. Orders poured in from five countries." },
+            { trait: "online", m: 2.1, text: "Your online store started shipping abroad and found eager buyers." }
+          ]
+        }
+      ]
+    }
+  ];
+
+  var ACHIEVEMENTS = [
+    { min: 1000000, title: "Millionaire Mogul",   icon: "👑", blurb: "You turned ₹1,000 into a business empire." },
+    { min: 500000,  title: "Business Tycoon",     icon: "🏆", blurb: "So close to the summit. One sharper move and you're a millionaire." },
+    { min: 100000,  title: "Rising Founder",      icon: "🚀", blurb: "A serious business with serious momentum." },
+    { min: 10000,   title: "Smart Investor",      icon: "📊", blurb: "You grew your money tenfold. Now think bigger." },
+    { min: 0,       title: "Rookie Entrepreneur", icon: "🌱", blurb: "Every great founder has a first failure. Try a new strategy." }
+  ];
+
+  /* ₹ with Indian digit grouping: 1000000 -> ₹10,00,000 */
+  function formatINR(amount) {
+    var n = Math.round(Number(amount) || 0);
+    var sign = n < 0 ? "-" : "";
+    var s = String(Math.abs(n));
+    if (s.length > 3) {
+      var last3 = s.slice(-3);
+      var rest = s.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ",");
+      s = rest + "," + last3;
+    }
+    return sign + "₹" + s;
+  }
+
+  /* Short form for tight spaces: ₹1.2K, ₹3.4L, ₹1.2Cr */
+  function formatINRShort(amount) {
+    var n = Math.round(Number(amount) || 0);
+    var abs = Math.abs(n), sign = n < 0 ? "-" : "";
+    function trim(x) { return (Math.round(x * 10) / 10).toString(); }
+    if (abs >= 10000000) return sign + "₹" + trim(abs / 10000000) + "Cr";
+    if (abs >= 100000) return sign + "₹" + trim(abs / 100000) + "L";
+    if (abs >= 1000) return sign + "₹" + trim(abs / 1000) + "K";
+    return sign + "₹" + abs;
+  }
+
+  function resolveOption(option, traits) {
+    var conds = option.conditions || [];
+    for (var i = 0; i < conds.length; i++) {
+      if (traits.indexOf(conds[i].trait) !== -1) {
+        return { multiplier: conds[i].m, text: conds[i].text, trait: conds[i].trait };
+      }
+    }
+    return { multiplier: option.base.m, text: option.base.text, trait: null };
+  }
+
+  function createGame() {
+    return {
+      capital: CONFIG.startingCapital,
+      peakCapital: CONFIG.startingCapital,
+      round: 0,               /* 0-based index into ROUNDS */
+      phase: "deciding",      /* deciding | result | finished */
+      status: "playing",      /* playing | won | survived | bankrupt */
+      traits: [],
+      history: [],
+      lastResult: null
+    };
+  }
+
+  /* Apply a decision. Returns a NEW state; returns the same state unchanged if
+     the choice is not allowed (wrong phase, bad index), so a decision can never
+     be applied twice. */
+  function choose(state, optionIndex) {
+    if (!state || state.phase !== "deciding") return state;
+    var round = ROUNDS[state.round];
+    var option = round && round.options[optionIndex];
+    if (!option) return state;
+
+    var outcome = resolveOption(option, state.traits);
+    var before = state.capital;
+    var after = Math.max(0, Math.round(before * outcome.multiplier));
+
+    var traits = state.traits.slice();
+    var gained = [];
+    (option.grants || []).forEach(function (t) {
+      if (traits.indexOf(t) === -1) { traits.push(t); gained.push(t); }
+    });
+
+    var result = {
+      round: state.round,
+      optionIndex: optionIndex,
+      optionTitle: option.title,
+      multiplier: outcome.multiplier,
+      baseMultiplier: option.base.m,
+      capitalBefore: before,
+      capitalAfter: after,
+      change: after - before,
+      text: outcome.text,
+      triggeredBy: outcome.trait,
+      gainedTraits: gained
+    };
+
+    var bankrupt = after < CONFIG.bankruptcyThreshold;
+    var lastRound = state.round === ROUNDS.length - 1;
+    var status = "playing";
+    if (bankrupt) status = "bankrupt";
+    else if (lastRound) status = after >= CONFIG.targetCapital ? "won" : "survived";
+
+    return {
+      capital: after,
+      peakCapital: Math.max(state.peakCapital, after),
+      round: state.round,
+      phase: "result",
+      status: status,
+      traits: traits,
+      history: state.history.concat([result]),
+      lastResult: result
+    };
+  }
+
+  /* Move from the result screen to the next round, or to the finish. */
+  function advance(state) {
+    if (!state || state.phase !== "result") return state;
+    var next = Object.assign({}, state);
+    if (state.status !== "playing") {
+      next.phase = "finished";
+    } else {
+      next.round = state.round + 1;
+      next.phase = "deciding";
+      next.lastResult = null;
+    }
+    return next;
+  }
+
+  function roundsCompleted(state) { return state.history.length; }
+
+  function progress(capital) {
+    /* Log scale from start to target: each 10x is a third of the bar, so
+       early progress is visible instead of a sliver. */
+    var c = Math.max(1, capital);
+    var p = Math.log(c / CONFIG.startingCapital) / Math.log(CONFIG.targetCapital / CONFIG.startingCapital);
+    return Math.max(0, Math.min(1, p));
+  }
+
+  function getAchievement(state) {
+    var cap = state.status === "bankrupt" ? 0 : state.capital;
+    for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+      if (cap >= ACHIEVEMENTS[i].min) return ACHIEVEMENTS[i];
+    }
+    return ACHIEVEMENTS[ACHIEVEMENTS.length - 1];
+  }
+
+  root.MillionaireEngine = {
+    CONFIG: CONFIG,
+    TRAITS: TRAITS,
+    ROUNDS: ROUNDS,
+    ACHIEVEMENTS: ACHIEVEMENTS,
+    formatINR: formatINR,
+    formatINRShort: formatINRShort,
+    resolveOption: resolveOption,
+    createGame: createGame,
+    choose: choose,
+    advance: advance,
+    roundsCompleted: roundsCompleted,
+    progress: progress,
+    getAchievement: getAchievement
+  };
+})(typeof globalThis !== "undefined" ? globalThis : this);
+</script>
+
+<script id="game-ui">
+(function () {
+  "use strict";
+  var E = window.MillionaireEngine;
+  var C = E.CONFIG;
+  var LETTERS = ["A", "B", "C"];
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $("stage");
+  var state = null;        /* null = intro screen */
+  var shownCapital = C.startingCapital;
+  var countAnim = 0;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function fmtMult(m) { return "×" + (Math.round(m * 100) / 100).toString(); }
+
+  /* ---------- Dashboard ---------- */
+  function setCapital(target, animate) {
+    cancelAnimationFrame(countAnim);
+    var el = $("capValue");
+    var from = shownCapital;
+    if (!animate || reduceMotion || from === target) {
+      shownCapital = target;
+      el.textContent = E.formatINR(target);
+      return;
+    }
+    el.classList.remove("flash-up", "flash-down");
+    el.classList.add(target >= from ? "flash-up" : "flash-down");
+    var t0 = performance.now(), dur = 900;
+    (function frame(now) {
+      var k = Math.min(1, (now - t0) / dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      shownCapital = Math.round(from + (target - from) * e);
+      el.textContent = E.formatINR(shownCapital);
+      if (k < 1) countAnim = requestAnimationFrame(frame);
+      else setTimeout(function () { el.classList.remove("flash-up", "flash-down"); }, 500);
+    })(t0);
+  }
+
+  function renderDashboard(animate) {
+    var cap = state ? state.capital : C.startingCapital;
+    setCapital(cap, animate);
+
+    var p = E.progress(cap);
+    $("fill").style.width = (p * 100).toFixed(2) + "%";
+    $("track").setAttribute("aria-valuenow", String(Math.round(p * 100)));
+    Array.prototype.forEach.call(document.querySelectorAll(".tick"), function (t) {
+      t.classList.toggle("reached", cap >= Number(t.getAttribute("data-at")));
+    });
+
+    var toGo = $("statToGo");
+    if (cap >= C.targetCapital) { toGo.textContent = "Reached!"; toGo.className = "gold"; }
+    else if (cap <= 0) { toGo.textContent = "—"; toGo.className = ""; }
+    else {
+      var need = C.targetCapital / cap;
+      toGo.textContent = "×" + (need >= 100 ? Math.round(need) : need.toFixed(1));
+      toGo.className = "";
+    }
+
+    var delta = $("capDelta");
+    var last = state && state.lastResult;
+    if (last && state.phase === "result") {
+      delta.textContent = (last.change >= 0 ? "▲ +" : "▼ −") + E.formatINR(Math.abs(last.change)) + " this round";
+      delta.className = "cap-delta " + (last.change >= 0 ? "up" : "down");
+    } else {
+      delta.textContent = "";
+      delta.className = "cap-delta";
+    }
+
+    var traits = state ? state.traits : [];
+    var fresh = last ? last.gainedTraits : [];
+    var list = $("traits");
+    if (!traits.length) {
+      list.innerHTML = '<li class="empty">None yet. Your decisions will build them.</li>';
+    } else {
+      list.innerHTML = traits.map(function (id) {
+        var t = E.TRAITS[id];
+        var cls = "chip" + (t.good ? "" : " bad") + (fresh.indexOf(id) !== -1 && state.phase === "result" ? " new" : "");
+        return '<li class="' + cls + '" title="' + esc(t.desc) + '"><span aria-hidden="true">' + t.icon + "</span>" + esc(t.label) + "</li>";
+      }).join("");
+    }
+
+    var meta = $("roundMeta");
+    meta.hidden = !state || state.phase === "finished";
+    if (state) {
+      $("roundLabel").innerHTML = "Round <b>" + (state.round + 1) + "</b> / " + C.totalRounds;
+      var pips = "";
+      for (var i = 0; i < C.totalRounds; i++) {
+        var h = state.history[i];
+        var cls = "pip";
+        if (h) cls += h.change >= 0 ? " done-up" : " done-down";
+        else if (i === state.round) cls += " now";
+        pips += '<span class="' + cls + '"></span>';
+      }
+      $("pips").innerHTML = pips;
+    }
+  }
+
+  /* ---------- Screens ---------- */
+  function renderIntro() {
+    stage.innerHTML =
+      '<div class="panel hero">' +
+        '<span class="level-tag">Business simulation · 10 rounds</span>' +
+        '<h1>Turn <span class="gold">₹1,000</span> into <span class="gold">₹10 lakh</span>.</h1>' +
+        '<p class="lede">Start with a tiny side hustle and make ten big decisions: marketing, hiring, suppliers, expansion. Every choice changes your capital, and your strengths carry forward.</p>' +
+        '<ul class="rules">' +
+          "<li>Each round, pick one of three strategies. Riskier moves can pay more, or cost you dearly.</li>" +
+          "<li>Choices build business strengths. The same move can win or fail depending on what you've built.</li>" +
+          "<li>Finish with ₹10,00,000 to win. Fall below ₹100 and you're bankrupt.</li>" +
+        "</ul>" +
+        '<button class="btn wide" id="startBtn" type="button">Start your business</button>' +
+      "</div>";
+    $("startBtn").addEventListener("click", startGame);
+  }
+
+  function renderDecision() {
+    var r = E.ROUNDS[state.round];
+    var html =
+      '<div class="panel">' +
+        '<span class="level-tag"><span aria-hidden="true">' + r.icon + "</span>Round " + (state.round + 1) + " of " + C.totalRounds + "</span>" +
+        '<h2 class="scenario-title">' + esc(r.level) + "</h2>" +
+        '<p class="scenario-text">' + esc(r.scenario) + "</p>" +
+      "</div>" +
+      '<div class="options" role="group" aria-label="Choose your strategy">';
+    r.options.forEach(function (o, i) {
+      html +=
+        '<button class="option" type="button" data-i="' + i + '">' +
+          '<span class="option-key" aria-hidden="true">' + LETTERS[i] + "</span>" +
+          '<span class="option-title">' + esc(o.title) + ' <span class="risk ' + o.risk + '">' + o.risk + " risk</span></span>" +
+          '<span class="option-desc">' + esc(o.description) + "</span>" +
+        "</button>";
+    });
+    html += '</div><p class="hint">Tap a strategy, or press <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>.</p>';
+    stage.innerHTML = html;
+    Array.prototype.forEach.call(stage.querySelectorAll(".option"), function (b) {
+      b.addEventListener("click", function () { pick(Number(b.getAttribute("data-i"))); });
+    });
+  }
+
+  function renderResult() {
+    var res = state.lastResult;
+    var up = res.change >= 0;
+    var lastRound = state.status !== "playing";
+    var nextLabel = state.status === "bankrupt" ? "See what happened" : lastRound ? "See final results" : "Next round →";
+
+    var callouts = "";
+    if (res.triggeredBy) {
+      var t = E.TRAITS[res.triggeredBy];
+      var helped = res.multiplier >= res.baseMultiplier;
+      callouts += '<div class="callout ' + (helped ? "good" : "bad") + '"><span aria-hidden="true">' + t.icon + "</span><span><b>" + esc(t.label) + "</b> " + (helped ? "made this pay off." : "worked against you here.") + "</span></div>";
+    }
+    res.gainedTraits.forEach(function (id) {
+      var t = E.TRAITS[id];
+      callouts += '<div class="callout ' + (t.good ? "info" : "bad") + '"><span aria-hidden="true">' + t.icon + "</span><span>New strength: <b>" + esc(t.label) + "</b>. " + esc(t.desc) + "</span></div>";
+    });
+    if (state.status === "bankrupt") {
+      callouts += '<div class="callout bad"><span aria-hidden="true">💸</span><span>Your capital fell below ' + E.formatINR(C.bankruptcyThreshold) + ". The business is bankrupt.</span></div>";
+    }
+
+    stage.innerHTML =
+      '<div class="panel result ' + (up ? "up" : "down") + '" tabindex="-1" id="resultCard">' +
+        "<div>" +
+          '<div class="result-kicker">Round ' + (res.round + 1) + " result</div>" +
+          '<div class="result-choice">' + esc(res.optionTitle) + "</div>" +
+        "</div>" +
+        '<div class="result-amount">' + (up ? "+" : "−") + E.formatINR(Math.abs(res.change)) + "</div>" +
+        '<p class="result-text">' + esc(res.text) + "</p>" +
+        '<dl class="ledger">' +
+          "<dt>Capital before</dt><dd>" + E.formatINR(res.capitalBefore) + "</dd>" +
+          "<dt>Decision multiplier</dt><dd>" + fmtMult(res.multiplier) + "</dd>" +
+          '<dt class="total">Capital now</dt><dd class="total">' + E.formatINR(res.capitalAfter) + "</dd>" +
+        "</dl>" +
+        callouts +
+        '<button class="btn wide" id="nextBtn" type="button">' + nextLabel + "</button>" +
+      "</div>";
+    $("nextBtn").addEventListener("click", next);
+    $("nextBtn").focus({ preventScroll: true });
+  }
+
+  function renderFinish() {
+    var a = E.getAchievement(state);
+    var cls = state.status;
+    var outcome = { won: "Victory", survived: "Survived 10 rounds", bankrupt: "Bankrupt" }[cls];
+    var growth = state.capital / C.startingCapital;
+    var growthText = state.capital <= 0 ? "−100%" : growth >= 10 ? "×" + Math.round(growth).toLocaleString("en-IN") : (growth >= 1 ? "+" : "") + Math.round((growth - 1) * 100) + "%";
+    var message = cls === "won"
+      ? "You built a business empire worth " + E.formatINR(state.capital) + " from a ₹1,000 start."
+      : cls === "survived"
+        ? "You finished " + E.formatINR(C.targetCapital - state.capital) + " short of ₹10 lakh. A different set of strengths could get you there."
+        : "Bankruptcy hit in round " + state.history.length + ". " + a.blurb;
+
+    var hist = state.history.map(function (h) {
+      return "<li><span class=\"r\">R" + (h.round + 1) + '</span><span class="t">' + esc(h.optionTitle) + '</span><span class="m ' + (h.change >= 0 ? "up" : "down") + '">' + fmtMult(h.multiplier) + "</span></li>";
+    }).join("");
+
+    stage.innerHTML =
+      '<div class="panel finale ' + cls + '">' +
+        '<div class="medal" aria-hidden="true">' + (cls === "bankrupt" ? "💸" : a.icon) + "</div>" +
+        '<div class="finale-outcome">' + outcome + "</div>" +
+        "<h2>" + esc(a.title) + "</h2>" +
+        "<p>" + esc(message) + "</p>" +
+        '<dl class="stats">' +
+          '<div class="stat"><dt>Final capital</dt><dd class="' + (cls === "won" ? "gold" : "") + '">' + E.formatINR(state.capital) + "</dd></div>" +
+          '<div class="stat"><dt>Growth</dt><dd>' + growthText + "</dd></div>" +
+          '<div class="stat"><dt>Rounds</dt><dd>' + state.history.length + " / " + C.totalRounds + "</dd></div>" +
+        "</dl>" +
+        '<div class="history-title">Your journey</div>' +
+        '<ol class="history">' + hist + "</ol>" +
+        '<button class="btn wide" id="restartBtn" type="button">Play again</button>' +
+      "</div>";
+    $("restartBtn").addEventListener("click", startGame);
+    $("restartBtn").focus({ preventScroll: true });
+    if (cls === "won") confetti();
+  }
+
+  function render(animate) {
+    renderDashboard(animate);
+    if (!state) renderIntro();
+    else if (state.phase === "deciding") renderDecision();
+    else if (state.phase === "result") renderResult();
+    else renderFinish();
+  }
+
+  /* ---------- Actions ---------- */
+  function startGame() {
+    state = E.createGame();
+    shownCapital = state.capital;
+    render(false);
+    window.scrollTo({ top: 0 });
+  }
+
+  function pick(i) {
+    if (!state || state.phase !== "deciding") return;
+    Array.prototype.forEach.call(stage.querySelectorAll(".option"), function (b, k) {
+      b.disabled = true;
+      if (k === i) b.classList.add("picked");
+    });
+    var next = E.choose(state, i);
+    if (next === state) return;
+    state = next;
+    setTimeout(function () { render(true); scrollToStage(); }, reduceMotion ? 0 : 220);
+  }
+
+  function next() {
+    if (!state || state.phase !== "result") return;
+    state = E.advance(state);
+    render(false);
+    scrollToStage();
+  }
+
+  function scrollToStage() {
+    if (window.innerWidth >= 900) return;
+    var top = stage.getBoundingClientRect().top + window.scrollY - 12;
+    if (window.scrollY > top || top - window.scrollY > window.innerHeight * 0.55) {
+      window.scrollTo({ top: Math.max(0, top - 140), behavior: reduceMotion ? "auto" : "smooth" });
+    }
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (state && state.phase === "deciding" && /^[1-3]$/.test(e.key)) { pick(Number(e.key) - 1); e.preventDefault(); }
+    else if (state && state.phase === "deciding" && /^[abc]$/i.test(e.key)) { pick("abc".indexOf(e.key.toLowerCase())); e.preventDefault(); }
+  });
+
+  /* ---------- Confetti (victory only) ---------- */
+  function confetti() {
+    if (reduceMotion) return;
+    var cv = $("confetti");
+    var ctx = cv.getContext && cv.getContext("2d");
+    if (!ctx) return;
+    cv.hidden = false;
+    var dpr = window.devicePixelRatio || 1;
+    var W = cv.width = innerWidth * dpr, H = cv.height = innerHeight * dpr;
+    var colors = ["#f5c451", "#ffd56e", "#2fd39a", "#ffffff", "#8fb8ff"];
+    var bits = [];
+    for (var i = 0; i < 160; i++) {
+      bits.push({
+        x: Math.random() * W, y: -Math.random() * H * 0.6,
+        vx: (Math.random() - 0.5) * 3 * dpr, vy: (2 + Math.random() * 4) * dpr,
+        r: (4 + Math.random() * 5) * dpr, a: Math.random() * Math.PI, va: (Math.random() - 0.5) * 0.3,
+        c: colors[i % colors.length], rupee: i % 9 === 0
+      });
+    }
+    var t0 = performance.now();
+    (function frame(now) {
+      ctx.clearRect(0, 0, W, H);
+      bits.forEach(function (b) {
+        b.x += b.vx; b.y += b.vy; b.vy += 0.05 * dpr; b.a += b.va;
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.a); ctx.fillStyle = b.c;
+        if (b.rupee) { ctx.font = "800 " + (b.r * 3) + "px sans-serif"; ctx.fillText("₹", 0, 0); }
+        else ctx.fillRect(-b.r, -b.r / 2, b.r * 2, b.r);
+        ctx.restore();
+      });
+      if (now - t0 < 4500) requestAnimationFrame(frame);
+      else { ctx.clearRect(0, 0, W, H); cv.hidden = true; }
+    })(t0);
+  }
+
+  /* Keep a game in progress across live page updates where the host supports it. */
+  var hot = window.claude && window.claude.hot;
+  if (hot && hot.snapshot) hot.snapshot(function () { return { state: state }; });
+  function boot(data) {
+    if (data && data.state && data.state.history) { state = data.state; shownCapital = state.capital; }
+    $("statStart").textContent = E.formatINR(C.startingCapital);
+    $("statTarget").textContent = E.formatINR(C.targetCapital);
+    render(false);
+  }
+  if (hot && hot.ready) hot.ready(boot); else boot((hot && hot.data) || {});
+})();
+</script>
+</body>
+</html>
